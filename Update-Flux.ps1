@@ -30,6 +30,7 @@ $files = @(
     "Search-FluxPackage.ps1"
     "Uninstall-FluxPackage.ps1"
     "Get-FluxPackage.ps1"
+    "Get-FluxAliases.ps1"
 )
 
 # Note: flux-aliases.csv is NOT updated automatically to preserve local customizations

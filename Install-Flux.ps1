@@ -84,6 +84,7 @@ $files = @(
     "Search-FluxPackage.ps1"
     "Uninstall-FluxPackage.ps1"
     "Get-FluxPackage.ps1"
+    "Get-FluxAliases.ps1"
     "flux-aliases.csv"
 )
 
