@@ -8,6 +8,7 @@ flux install chrome
 flux uninstall discord
 flux search python
 flux list
+flux aliases browser
 ```
 
 ---
@@ -32,51 +33,48 @@ That's it. Open a new PowerShell window and `flux` is ready to use.
 
 ---
 
-## RMM Deployment 
-
-Use this as your RMM script. It installs Flux system-wide to `C:\ProgramData\Flux`
-and configures it to auto-load for all users.
-
-```powershell
-# Deploy Flux via RMM
-$installScript = "https://raw.githubusercontent.com/huskylogic/flux/main/Install-Flux.ps1"
-Invoke-RestMethod -Uri $installScript | Invoke-Expression
-```
-
-Or download and run locally on the endpoint:
-
-```powershell
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/huskylogic/flux/main/Install-Flux.ps1" `
-    -OutFile "$env:TEMP\Install-Flux.ps1" -UseBasicParsing
-& "$env:TEMP\Install-Flux.ps1"
-```
-
-### RMM Onboarding Script Example
-
-```powershell
-# Install Flux then use it to deploy your standard software stack
-irm https://raw.githubusercontent.com/huskylogic/flux/main/Install-Flux.ps1 | iex
-
-Import-Module "C:\ProgramData\Flux\flux.psd1"
-
-flux install chrome    -Silent
-flux install 7zip      -Silent
-flux install vscode    -Silent
-flux install git       -Silent
-flux install notepad++ -Silent
-```
-
----
-
 ## Updating Flux
 
-On any machine where Flux is installed, run as Administrator:
+On any machine where Flux is already installed, run as Administrator:
 
 ```powershell
 irm https://raw.githubusercontent.com/huskylogic/flux/main/Update-Flux.ps1 | iex
 ```
 
-Note: `flux-aliases.csv` is never overwritten during updates so your custom aliases are preserved.
+Then reload the module in your current session:
+
+```powershell
+Remove-Module flux -ErrorAction SilentlyContinue
+Import-Module "C:\ProgramData\Flux\flux.psd1"
+```
+
+> Note: `flux-aliases.csv` is never overwritten during updates so your custom aliases are always preserved.
+
+---
+
+## RMM Deployment
+
+Use this as your RMM script. Installs Flux system-wide to `C:\ProgramData\Flux`
+and configures it to auto-load for all users.
+
+```powershell
+irm https://raw.githubusercontent.com/huskylogic/flux/main/Install-Flux.ps1 | iex
+```
+
+### RMM Onboarding Script Example
+
+```powershell
+# Install Flux then deploy your standard software stack
+irm https://raw.githubusercontent.com/huskylogic/flux/main/Install-Flux.ps1 | iex
+
+Import-Module "C:\ProgramData\Flux\flux.psd1"
+
+flux install chrome      -Silent
+flux install 7zip        -Silent
+flux install vscode      -Silent
+flux install git         -Silent
+flux install notepad++   -Silent
+```
 
 ---
 
@@ -87,17 +85,56 @@ flux install   [package]     # Install by alias or fuzzy name
 flux uninstall [package]     # Uninstall by alias or fuzzy name
 flux search    [package]     # Search winget and display results
 flux list      [filter]      # List installed packages
+flux aliases   [filter]      # Browse available aliases
 ```
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `flux install [package]` | Install a package. Checks aliases first, falls back to fuzzy search |
+| `flux uninstall [package]` | Uninstall a package. Checks aliases first, falls back to fuzzy match against installed list |
+| `flux search [package]` | Search winget and display matching results |
+| `flux list [filter]` | List all installed packages, optionally filtered |
+| `flux aliases [filter]` | Browse all available aliases, optionally filtered by name or package ID |
 
 ### Flags
 
 | Flag | Description |
 |------|-------------|
-| `-Yes` / `-y` | Skip confirmation (fuzzy matches only) |
-| `-Exact` / `-e` | Use exact package ID, skip fuzzy matching |
-| `-Silent` / `-s` | Suppress winget output (good for RMM) |
-| `-ShowScores` / `-scores` | Show fuzzy match debug scores |
-| `-Limit` / `-l [n]` | Max results for search |
+| `-Yes` / `-y` | Skip confirmation prompts (fuzzy matches only) |
+| `-Exact` / `-e` | Use exact package ID, skip fuzzy matching (install only) |
+| `-Silent` / `-s` | Suppress winget output (install only, good for RMM) |
+| `-ShowScores` / `-scores` | Show fuzzy match debug scores (install only) |
+| `-Limit` / `-l [n]` | Max results to show (search only) |
+
+### Examples
+
+```powershell
+# Install by alias - no prompts, goes straight to install
+flux install vscode
+flux install chrome
+flux install 7zip
+
+# Not sure what's available? Browse aliases
+flux aliases
+flux aliases browser
+flux aliases remote
+flux aliases office
+
+# Search winget directly
+flux search python
+
+# See what's installed
+flux list
+flux list adobe
+
+# Uninstall
+flux uninstall discord
+
+# RMM-friendly silent install
+flux install vscode -Silent
+```
 
 ---
 
@@ -110,7 +147,15 @@ Alias,PackageId
 myapp,Publisher.AppName
 ```
 
-Lines starting with `#` are treated as comments. No reload needed — changes take effect immediately.
+Lines starting with `#` are treated as section comments. No reload needed — changes take effect immediately.
+
+To find a package ID you don't know:
+
+```powershell
+flux search myapp
+```
+
+Then copy the ID from the results and add it to the CSV.
 
 ---
 
@@ -120,26 +165,36 @@ Lines starting with `#` are treated as comments. No reload needed — changes ta
 flux/
 ├── flux.psd1                    # Module manifest
 ├── flux.psm1                    # Entry point and dispatcher
-├── flux-aliases.csv             # Alias -> PackageId mappings
+├── flux-aliases.csv             # Alias -> PackageId mappings (458 built-in)
 ├── Install-Flux.ps1             # System-wide installer
-├── Update-Flux.ps1              # Updater
+├── Update-Flux.ps1              # Updater (preserves aliases)
 ├── Write-FluxOutput.ps1         # Shared output helpers
-├── Invoke-Winget.ps1            # winget interface and parser
+├── Invoke-Winget.ps1            # winget interface and output parser
 ├── Get-BestMatch.ps1            # Fuzzy matching engine
 ├── Install-FluxPackage.ps1      # flux install
 ├── Search-FluxPackage.ps1       # flux search
 ├── Uninstall-FluxPackage.ps1    # flux uninstall
-└── Get-FluxPackage.ps1          # flux list
+├── Get-FluxPackage.ps1          # flux list
+└── Get-FluxAliases.ps1          # flux aliases
 ```
+
+---
+
+## How It Works
+
+**Alias lookup** — when you run `flux install vscode`, Flux first checks `flux-aliases.csv` for an exact match. If found it installs immediately with no searching or prompting.
+
+**Fuzzy matching** — if no alias exists, Flux searches winget and scores each result using a combination of exact matching, word boundary matching, substring matching, and Levenshtein distance. Pre-release versions (Insiders, Preview, Beta, Canary) are penalized unless your query mentions them explicitly.
+
+**Uninstall** — works the same way. Alias lookup first, then fuzzy match against your installed packages list.
 
 ---
 
 ## Setting Up Your GitHub Repo
 
-1. Create a new repo at github.com named `flux`
-2. Upload all the files from this project
-3. Replace `huskylogic` in `Install-Flux.ps1` and `Update-Flux.ps1` with your GitHub username
-4. To create a release: tag a commit with `git tag v1.0.0 && git push --tags`
+1. Create a new **public** repo at github.com named `flux`
+2. Upload all files from this project including the `.github/workflows/release.yml` folder structure
+3. To create a release: `git tag v1.0.0 && git push --tags`
    - GitHub Actions will automatically build and attach a zip to the release
 
 ---
