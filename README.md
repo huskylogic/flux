@@ -32,7 +32,7 @@ That's it. Open a new PowerShell window and `flux` is ready to use.
 
 ---
 
-## RMM Deployment (Gorelo / Action1)
+## RMM Deployment 
 
 Use this as your RMM script. It installs Flux system-wide to `C:\ProgramData\Flux`
 and configures it to auto-load for all users.
