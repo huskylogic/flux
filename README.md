@@ -201,16 +201,6 @@ flux/
 └── Get-FluxAliases.ps1          # flux aliases
 ```
 
----
-
-## 🚀 Setting Up Your GitHub Repo
-
-1. Create a new **public** repo at github.com named `flux`
-2. Upload all files including the `.github/workflows/release.yml` folder structure
-3. Tag a release: `git tag v1.0.0 && git push --tags`
-   - GitHub Actions will automatically build and attach a zip to the release
-
----
 
 ## 💡 Why "Flux"?
 
