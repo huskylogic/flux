@@ -5,9 +5,6 @@ function Update-FluxPackages {
         [Parameter(Position = 0)]
         [string]$Query,
 
-        [Alias("y")]
-        [switch]$Yes,
-
         [switch]$Loud
     )
 
@@ -16,7 +13,6 @@ function Update-FluxPackages {
         $resolvedId = Get-FluxAlias -Query $Query
 
         if (-not $resolvedId) {
-            # Try fuzzy match against installed packages
             $installed = Get-WingetInstalled
             $match     = Get-BestMatch -Query $Query -Packages $installed
             if ($match) { $resolvedId = $match.Id }
@@ -36,9 +32,9 @@ function Update-FluxPackages {
         Write-Host " Upgrading $resolvedId..."
         Write-Host ""
 
-        $args = @("upgrade", "--id", $resolvedId, "--exact", "--accept-package-agreements", "--accept-source-agreements")
-        if (-not $Loud) { $args += "--silent" }
-        $code = Invoke-WingetCommand -Live -Arguments $args
+        $argList = @("upgrade", "--id", $resolvedId, "--exact", "--accept-package-agreements", "--accept-source-agreements")
+        if (-not $Loud) { $argList += "--silent" }
+        $code = Invoke-WingetCommand -Live -Arguments $argList
 
         Write-Host ""
         if ($code -eq 0) { Write-FluxSuccess "$resolvedId upgraded successfully." }
@@ -53,7 +49,6 @@ function Update-FluxPackages {
     Write-Host " Checking for updates..."
     Write-Host ""
 
-    # First show what's available
     $available = & winget upgrade --accept-source-agreements 2>&1
     $updates   = ConvertFrom-WingetTable -Lines $available
 
@@ -75,25 +70,15 @@ function Update-FluxPackages {
     }
 
     Write-Host ""
-    Write-Host ("  {0} update(s) available." -f $updates.Count) -ForegroundColor DarkGray
+    Write-Host ("  {0} update(s) found. Upgrading now..." -f $updates.Count) -ForegroundColor DarkGray
     Write-Host ""
 
-    if (-not $Yes) {
-        $confirm = Read-Host "  Upgrade all? [Y/n]"
-        if ($confirm -and $confirm -notmatch '^[Yy]') {
-            Write-Host "  Aborted." -ForegroundColor DarkGray
-            Write-Host ""
-            return
-        }
-    }
-
-    Write-Host ""
     Write-FluxHeader "Upgrading all packages..."
     Write-Host ""
 
-    $args = @("upgrade", "--all", "--accept-package-agreements", "--accept-source-agreements")
-    if (-not $Loud) { $args += "--silent" }
-    $code = Invoke-WingetCommand -Live -Arguments $args
+    $argList = @("upgrade", "--all", "--accept-package-agreements", "--accept-source-agreements")
+    if (-not $Loud) { $argList += "--silent" }
+    $code = Invoke-WingetCommand -Live -Arguments $argList
 
     Write-Host ""
     if ($code -eq 0) { Write-FluxSuccess "All packages upgraded successfully." }
