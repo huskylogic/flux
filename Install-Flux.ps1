@@ -84,12 +84,14 @@ $files = @(
     "flux.psm1"
     "Write-FluxOutput.ps1"
     "Invoke-Winget.ps1"
+    "Get-FluxAlias.ps1"
     "Get-BestMatch.ps1"
     "Install-FluxPackage.ps1"
     "Search-FluxPackage.ps1"
     "Uninstall-FluxPackage.ps1"
     "Get-FluxPackage.ps1"
     "Get-FluxAliases.ps1"
+    "Update-FluxSelf.ps1"
     "flux-aliases.csv"
 )
 

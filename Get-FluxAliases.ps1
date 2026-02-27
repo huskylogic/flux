@@ -6,24 +6,50 @@ function Get-FluxAliases {
         [string]$Filter
     )
 
+    # Load built-in aliases by calling Get-FluxAlias internals
+    # We replicate the table here for display purposes
     $aliasFile = Join-Path $PSScriptRoot "flux-aliases.csv"
+    $allAliases = [System.Collections.Generic.List[PSCustomObject]]::new()
 
-    if (-not (Test-Path $aliasFile)) {
-        Write-FluxError "flux-aliases.csv not found at $aliasFile"
-        return
+    # Load CSV aliases first (marked as custom)
+    if (Test-Path $aliasFile) {
+        $csvAliases = Import-Csv $aliasFile | Where-Object { $_.Alias -notmatch "^#" -and $_.Alias -ne "" }
+        foreach ($a in $csvAliases) {
+            $allAliases.Add([PSCustomObject]@{ Alias = $a.Alias; PackageId = $a.PackageId; Source = "csv" })
+        }
     }
 
-    $aliases = Import-Csv $aliasFile | Where-Object { $_.Alias -notmatch "^#" -and $_.Alias -ne "" }
+    # Load built-in aliases (skip any already defined in CSV)
+    $csvKeys = $allAliases | ForEach-Object { $_.Alias.ToLower() }
+    $tempId  = Get-FluxAlias -Query "____not_a_real_package____"  # warm up function scope
+
+    # Re-invoke to get the hashtable - we parse Get-FluxAlias's output indirectly
+    # by reading the source file directly for display
+    $selfPath = Join-Path $PSScriptRoot "Get-FluxAlias.ps1"
+    $builtInAliases = @{}
+    if (Test-Path $selfPath) {
+        $content = Get-Content $selfPath -Raw
+        $matches  = [regex]::Matches($content, '"([^"]+)"\s*=\s*"([^"]+)"')
+        foreach ($m in $matches) {
+            $alias = $m.Groups[1].Value
+            $pkgId = $m.Groups[2].Value
+            if ($alias -notin $csvKeys) {
+                $allAliases.Add([PSCustomObject]@{ Alias = $alias; PackageId = $pkgId; Source = "built-in" })
+            }
+        }
+    }
+
+    $display = $allAliases | Sort-Object Alias
 
     if ($Filter) {
-        $aliases = $aliases | Where-Object {
+        $display = $display | Where-Object {
             $_.Alias -like "*$Filter*" -or $_.PackageId -like "*$Filter*"
         }
     }
 
-    if (-not $aliases -or @($aliases).Count -eq 0) {
+    if (-not $display -or @($display).Count -eq 0) {
         Write-Host ""
-        Write-Host "  No aliases found matching '$Filter'." -ForegroundColor DarkGray
+        Write-Host "  No aliases found$(if ($Filter) { " matching '$Filter'" })." -ForegroundColor DarkGray
         Write-Host ""
         return
     }
@@ -35,16 +61,21 @@ function Get-FluxAliases {
         Write-Host "  All available aliases:" -ForegroundColor Cyan
     }
     Write-Host ""
-    Write-Host ("  {0,-25} {1}" -f "ALIAS", "PACKAGE ID") -ForegroundColor DarkGray
-    Write-Host ("  {0,-25} {1}" -f "-----", "----------") -ForegroundColor DarkGray
+    Write-Host ("  {0,-25} {1,-45} {2}" -f "ALIAS", "PACKAGE ID", "SOURCE") -ForegroundColor DarkGray
+    Write-Host ("  {0,-25} {1,-45} {2}" -f "-----", "----------", "------") -ForegroundColor DarkGray
 
-    foreach ($a in $aliases) {
+    foreach ($a in $display) {
+        $color = if ($a.Source -eq "csv") { "Yellow" } else { "DarkGray" }
         Write-Host ("  {0,-25} " -f $a.Alias) -NoNewline -ForegroundColor White
-        Write-Host $a.PackageId -ForegroundColor DarkGray
+        Write-Host ("{0,-45} " -f $a.PackageId) -NoNewline -ForegroundColor DarkGray
+        Write-Host $a.Source -ForegroundColor $color
     }
 
     Write-Host ""
-    Write-Host ("  {0} alias(es) found." -f @($aliases).Count) -ForegroundColor DarkGray
+    Write-Host ("  {0} alias(es) found." -f @($display).Count) -ForegroundColor DarkGray
+    Write-Host "  Custom aliases (csv) shown in " -NoNewline -ForegroundColor DarkGray
+    Write-Host "yellow" -ForegroundColor Yellow -NoNewline
+    Write-Host "." -ForegroundColor DarkGray
     Write-Host "  To install:  " -NoNewline -ForegroundColor DarkGray
     Write-Host "flux install [alias]" -ForegroundColor Cyan
     Write-Host ""

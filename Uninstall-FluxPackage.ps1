@@ -11,31 +11,19 @@ function Uninstall-FluxPackage {
 
     Write-FluxHeader "Looking for installed package '$Query'..."
 
-    # Check alias CSV to resolve common names to package IDs
-    $aliasFile = Join-Path $PSScriptRoot "flux-aliases.csv"
-    $resolvedId = $null
-    if (Test-Path $aliasFile) {
-        $aliases = Import-Csv $aliasFile | Where-Object { $_.Alias -notmatch "^#" -and $_.Alias -ne "" }
-        $aliasMatch = $aliases | Where-Object { $_.Alias -ieq $Query } | Select-Object -First 1
-        if ($aliasMatch) {
-            $resolvedId = $aliasMatch.PackageId
-        }
-    }
-
-    $installed = Get-WingetInstalled
+    $resolvedId = Get-FluxAlias -Query $Query
+    $installed  = Get-WingetInstalled
 
     if (-not $installed -or $installed.Count -eq 0) {
         Write-FluxError "Could not retrieve installed packages."
         return
     }
 
-    # If alias resolved, find by exact ID first
     $match = $null
     if ($resolvedId) {
         $match = $installed | Where-Object { $_.Id -ieq $resolvedId } | Select-Object -First 1
     }
 
-    # Fall back to fuzzy match against installed list
     if (-not $match) {
         $match = Get-BestMatch -Query $Query -Packages $installed
     }
@@ -61,10 +49,6 @@ function Uninstall-FluxPackage {
     $success = Uninstall-WingetPackage -PackageId $match.Id
 
     Write-Host ""
-    if ($success) {
-        Write-FluxSuccess "$($match.Name) uninstalled successfully."
-    }
-    else {
-        Write-FluxError "Uninstall failed."
-    }
+    if ($success) { Write-FluxSuccess "$($match.Name) uninstalled successfully." }
+    else          { Write-FluxError   "Uninstall failed." }
 }
