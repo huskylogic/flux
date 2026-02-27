@@ -15,6 +15,7 @@ $loadOrder = @(
     "Get-FluxPackage.ps1"
     "Get-FluxAliases.ps1"
     "Update-FluxSelf.ps1"
+    "Update-FluxPackages.ps1"
 )
 
 foreach ($file in $loadOrder) {
@@ -37,6 +38,7 @@ $fluxAliasMap = @{
     "list"      = "Get-FluxPackage"
     "aliases"   = "Get-FluxAliases"
     "update"    = "Update-FluxSelf"
+    "upgrade"   = "Update-FluxPackages"
 }
 
 function flux {
@@ -59,6 +61,8 @@ function flux {
         Write-Host "Install one or more packages" -ForegroundColor DarkGray
         Write-Host "    flux uninstall [package]     " -NoNewline -ForegroundColor White
         Write-Host "Uninstall a package" -ForegroundColor DarkGray
+        Write-Host "    flux upgrade   [package]     " -NoNewline -ForegroundColor White
+        Write-Host "Upgrade one package, or all if none specified" -ForegroundColor DarkGray
         Write-Host "    flux search    [package]     " -NoNewline -ForegroundColor White
         Write-Host "Search winget for packages" -ForegroundColor DarkGray
         Write-Host "    flux list      [filter]      " -NoNewline -ForegroundColor White
@@ -66,7 +70,7 @@ function flux {
         Write-Host "    flux aliases   [filter]      " -NoNewline -ForegroundColor White
         Write-Host "Browse available aliases" -ForegroundColor DarkGray
         Write-Host "    flux update                  " -NoNewline -ForegroundColor White
-        Write-Host "Update Flux from GitHub" -ForegroundColor DarkGray
+        Write-Host "Update the Flux tool itself from GitHub" -ForegroundColor DarkGray
         Write-Host ""
         Write-Host "  Options:" -ForegroundColor DarkGray
         Write-Host "    -Loud                        " -NoNewline -ForegroundColor White
@@ -82,8 +86,9 @@ function flux {
         Write-Host ""
         Write-Host "  Examples:" -ForegroundColor DarkGray
         Write-Host "    flux install chrome, vscode, 7zip, notepad++" -ForegroundColor White
+        Write-Host "    flux upgrade" -ForegroundColor White
+        Write-Host "    flux upgrade chrome" -ForegroundColor White
         Write-Host "    flux aliases browser" -ForegroundColor White
-        Write-Host "    flux search python" -ForegroundColor White
         Write-Host "    flux update" -ForegroundColor White
         Write-Host ""
         return
@@ -105,4 +110,4 @@ function flux {
 
 #endregion
 
-Export-ModuleMember -Function flux, Install-FluxPackage, Search-FluxPackage, Uninstall-FluxPackage, Get-FluxPackage, Get-FluxAliases, Get-FluxAlias, Update-FluxSelf
+Export-ModuleMember -Function flux, Install-FluxPackage, Search-FluxPackage, Uninstall-FluxPackage, Get-FluxPackage, Get-FluxAliases, Get-FluxAlias, Update-FluxSelf, Update-FluxPackages

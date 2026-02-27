@@ -92,6 +92,7 @@ $files = @(
     "Get-FluxPackage.ps1"
     "Get-FluxAliases.ps1"
     "Update-FluxSelf.ps1"
+    "Update-FluxPackages.ps1"
     "flux-aliases.csv"
 )
 

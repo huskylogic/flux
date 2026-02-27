@@ -97,7 +97,8 @@ flux uninstall [package]     # Uninstall by alias or fuzzy name
 flux search    [package]     # Search winget and display results
 flux list      [filter]      # List installed packages
 flux aliases   [filter]      # Browse available aliases
-flux update                  # Update Flux itself from GitHub
+flux upgrade   [package]     # Upgrade one or all installed packages
+flux update                  # Update the Flux tool itself from GitHub
 ```
 
 ### Commands
@@ -109,7 +110,8 @@ flux update                  # Update Flux itself from GitHub
 | `flux search [package]` | Search winget and display matching results |
 | `flux list [filter]` | List all installed packages, optionally filtered |
 | `flux aliases [filter]` | Browse all available aliases, optionally filtered |
-| `flux update` | Pull the latest version of Flux from GitHub. Preserves your custom aliases |
+| `flux upgrade [package]` | Upgrade one package, or all installed packages if none specified |
+| `flux update` | Update the Flux tool itself from GitHub. Preserves your custom aliases |
 
 ### Flags
 
