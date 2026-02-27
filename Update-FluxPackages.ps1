@@ -8,7 +8,6 @@ function Update-FluxPackages {
         [Alias("y")]
         [switch]$Yes,
 
-        [Alias("loud")]
         [switch]$Loud
     )
 

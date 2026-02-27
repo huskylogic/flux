@@ -14,7 +14,6 @@ function Install-FluxPackage {
         [Alias("scores")]
         [switch]$ShowScores,
 
-        [Alias("loud")]
         [switch]$Loud
     )
 
