@@ -8,6 +8,7 @@ $loadOrder = @(
     "Write-FluxOutput.ps1"
     "Invoke-Winget.ps1"
     "Get-FluxAlias.ps1"
+    "Get-FluxVersion.ps1"
     "Get-BestMatch.ps1"
     "Install-FluxPackage.ps1"
     "Search-FluxPackage.ps1"
@@ -39,6 +40,7 @@ $fluxAliasMap = @{
     "aliases"   = "Get-FluxAliases"
     "update"    = "Update-FluxSelf"
     "upgrade"   = "Update-FluxPackages"
+    "version"   = "Show-FluxVersion"
 }
 
 function flux {
@@ -71,6 +73,8 @@ function flux {
         Write-Host "Browse available aliases" -ForegroundColor DarkGray
         Write-Host "    flux update                  " -NoNewline -ForegroundColor White
         Write-Host "Update the Flux tool itself from GitHub" -ForegroundColor DarkGray
+        Write-Host "    flux version                 " -NoNewline -ForegroundColor White
+        Write-Host "Show current Flux version" -ForegroundColor DarkGray
         Write-Host ""
         Write-Host "  Options:" -ForegroundColor DarkGray
         Write-Host "    -Loud                        " -NoNewline -ForegroundColor White
@@ -89,6 +93,7 @@ function flux {
         Write-Host "    flux upgrade" -ForegroundColor White
         Write-Host "    flux upgrade chrome" -ForegroundColor White
         Write-Host "    flux aliases browser" -ForegroundColor White
+        Write-Host "    flux version" -ForegroundColor White
         Write-Host "    flux update" -ForegroundColor White
         Write-Host ""
         return
@@ -110,4 +115,4 @@ function flux {
 
 #endregion
 
-Export-ModuleMember -Function flux, Install-FluxPackage, Search-FluxPackage, Uninstall-FluxPackage, Get-FluxPackage, Get-FluxAliases, Get-FluxAlias, Update-FluxSelf, Update-FluxPackages
+Export-ModuleMember -Function flux, Install-FluxPackage, Search-FluxPackage, Uninstall-FluxPackage, Get-FluxPackage, Get-FluxAliases, Get-FluxAlias, Get-FluxVersion, Show-FluxVersion, Update-FluxSelf, Update-FluxPackages

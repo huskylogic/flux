@@ -22,10 +22,12 @@ $baseUrl = "https://raw.githubusercontent.com/$GitHubUser/$Repo/$Branch"
 
 $files = @(
     "flux.psd1"
+    "flux.version"
     "flux.psm1"
     "Write-FluxOutput.ps1"
     "Invoke-Winget.ps1"
     "Get-FluxAlias.ps1"
+    "Get-FluxVersion.ps1"
     "Get-BestMatch.ps1"
     "Install-FluxPackage.ps1"
     "Search-FluxPackage.ps1"
