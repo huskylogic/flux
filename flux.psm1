@@ -115,4 +115,4 @@ function flux {
 
 #endregion
 
-Export-ModuleMember -Function flux, Install-FluxPackage, Search-FluxPackage, Uninstall-FluxPackage, Get-FluxPackage, Get-FluxAliases, Get-FluxAlias, Get-FluxVersion, Show-FluxVersion, Update-FluxSelf, Update-FluxPackages
+Export-ModuleMember -Function flux, Install-FluxPackage, Search-FluxPackage, Uninstall-FluxPackage, Get-FluxPackage, Get-FluxAliases, Get-FluxAlias, Get-FluxAliasTable, Get-FluxVersion, Show-FluxVersion, Update-FluxSelf, Update-FluxPackages, Get-BestMatch, Get-PackageScore

@@ -21,21 +21,11 @@ function Get-FluxAliases {
 
     # Load built-in aliases (skip any already defined in CSV)
     $csvKeys = $allAliases | ForEach-Object { $_.Alias.ToLower() }
-    $tempId  = Get-FluxAlias -Query "____not_a_real_package____"  # warm up function scope
 
-    # Re-invoke to get the hashtable - we parse Get-FluxAlias's output indirectly
-    # by reading the source file directly for display
-    $selfPath = Join-Path $PSScriptRoot "Get-FluxAlias.ps1"
-    $builtInAliases = @{}
-    if (Test-Path $selfPath) {
-        $content = Get-Content $selfPath -Raw
-        $matches  = [regex]::Matches($content, '"([^"]+)"\s*=\s*"([^"]+)"')
-        foreach ($m in $matches) {
-            $alias = $m.Groups[1].Value
-            $pkgId = $m.Groups[2].Value
-            if ($alias -notin $csvKeys) {
-                $allAliases.Add([PSCustomObject]@{ Alias = $alias; PackageId = $pkgId; Source = "built-in" })
-            }
+    $builtIn = Get-FluxAliasTable
+    foreach ($entry in $builtIn.GetEnumerator()) {
+        if ($entry.Key -notin $csvKeys) {
+            $allAliases.Add([PSCustomObject]@{ Alias = $entry.Key; PackageId = $entry.Value; Source = "built-in" })
         }
     }
 

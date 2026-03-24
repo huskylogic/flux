@@ -2,22 +2,10 @@
 # Resolves an alias to a PackageId.
 # Checks flux-aliases.csv first (if present), then falls back to built-in list.
 
-function Get-FluxAlias {
-    param(
-        [Parameter(Mandatory, Position = 0)]
-        [string]$Query
-    )
-
-    # ── Check CSV first (user customizations take priority) ───────────────────
-    $aliasFile = Join-Path $PSScriptRoot "flux-aliases.csv"
-    if (Test-Path $aliasFile) {
-        $csvAliases = Import-Csv $aliasFile | Where-Object { $_.Alias -notmatch "^#" -and $_.Alias -ne "" }
-        $csvMatch   = $csvAliases | Where-Object { $_.Alias -ieq $Query } | Select-Object -First 1
-        if ($csvMatch) { return $csvMatch.PackageId }
-    }
-
-    # ── Built-in alias table (fallback) ───────────────────────────────────────
-    $builtIn = @{
+# Returns the built-in alias hashtable.
+# Separated so Get-FluxAliases can enumerate all entries without parsing source files.
+function Get-FluxAliasTable {
+    return @{
         # Browsers
         "chrome"              = "Google.Chrome"
         "firefox"             = "Mozilla.Firefox"
@@ -339,7 +327,25 @@ function Get-FluxAlias {
         # Translation
         "deepl"               = "DeepL.DeepL"
     }
+}
 
+
+function Get-FluxAlias {
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [string]$Query
+    )
+
+    # ── Check CSV first (user customizations take priority) ───────────────────
+    $aliasFile = Join-Path $PSScriptRoot "flux-aliases.csv"
+    if (Test-Path $aliasFile) {
+        $csvAliases = Import-Csv $aliasFile | Where-Object { $_.Alias -notmatch "^#" -and $_.Alias -ne "" }
+        $csvMatch   = $csvAliases | Where-Object { $_.Alias -ieq $Query } | Select-Object -First 1
+        if ($csvMatch) { return $csvMatch.PackageId }
+    }
+
+    # ── Built-in alias table (fallback) ───────────────────────────────────────
+    $builtIn = Get-FluxAliasTable
     $key = $Query.ToLower()
     if ($builtIn.ContainsKey($key)) {
         return $builtIn[$key]

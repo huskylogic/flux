@@ -43,6 +43,15 @@ function Uninstall-FluxPackage {
     Write-Host "($($match.Id))" -ForegroundColor DarkGray
     Write-Host ""
 
+    if (-not $Yes) {
+        $confirm = Read-Host "  Uninstall this package? [Y/n]"
+        if ($confirm -and $confirm -notmatch '^[Yy]') {
+            Write-Host "  Aborted." -ForegroundColor DarkGray
+            Write-Host ""
+            return
+        }
+    }
+
     Write-FluxHeader "Uninstalling $($match.Id)..."
     Write-Host ""
 
