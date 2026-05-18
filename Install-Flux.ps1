@@ -54,26 +54,30 @@ Write-Step "Checking winget..."
 if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
     Write-Step "winget not found. Attempting to install App Installer via WinGet bootstrapper..."
     try {
-        # Requires Windows 10 1709+ / Server 2019+. Pulls the latest stable release.
         $progressPreference = 'silentlyContinue'
         $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/microsoft/winget-cli/releases/latest" -UseBasicParsing
-        $msixBundle = ($releases.assets | Where-Object { $_.name -like "*.msixbundle" })[0].browser_download_url
-        $depVcLibs  = "https://aka.ms/Microsoft.VCLibs.x64.14.00.Desktop.appx"
-        $depUiXaml  = ($releases.assets | Where-Object { $_.name -like "Microsoft.UI.Xaml*.appx" })[0].browser_download_url
+
+        $msixBundle  = ($releases.assets | Where-Object { $_.name -like "*.msixbundle" } | Select-Object -First 1).browser_download_url
+        $depVcLibs   = "https://aka.ms/Microsoft.VCLibs.x64.14.00.Desktop.appx"
+        $uiXamlAsset = $releases.assets | Where-Object { $_.name -like "*.appx" -and $_.name -like "*Xaml*" } | Select-Object -First 1
+        $depUiXaml   = $uiXamlAsset.browser_download_url
+
+        if (-not $msixBundle) { throw "Could not locate msixbundle asset in latest winget-cli release." }
 
         $tempDir = "$env:TEMP\winget-bootstrap"
         New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 
         Write-Host "    downloading VCLibs..." -ForegroundColor DarkGray
         Invoke-WebRequest -Uri $depVcLibs -OutFile "$tempDir\VCLibs.appx" -UseBasicParsing
+        Add-AppxPackage -Path "$tempDir\VCLibs.appx" -ErrorAction SilentlyContinue
 
         if ($depUiXaml) {
             Write-Host "    downloading Microsoft.UI.Xaml..." -ForegroundColor DarkGray
             Invoke-WebRequest -Uri $depUiXaml -OutFile "$tempDir\UIXaml.appx" -UseBasicParsing
             Add-AppxPackage -Path "$tempDir\UIXaml.appx" -ErrorAction SilentlyContinue
+        } else {
+            Write-Host "    Microsoft.UI.Xaml not found in release assets, skipping..." -ForegroundColor DarkGray
         }
-
-        Add-AppxPackage -Path "$tempDir\VCLibs.appx" -ErrorAction SilentlyContinue
 
         Write-Host "    downloading App Installer ($($releases.tag_name))..." -ForegroundColor DarkGray
         Invoke-WebRequest -Uri $msixBundle -OutFile "$tempDir\AppInstaller.msixbundle" -UseBasicParsing
