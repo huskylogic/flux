@@ -58,8 +58,10 @@ if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
 
         $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/microsoft/winget-cli/releases/latest" -UseBasicParsing
         $msixBundle = ($releases.assets | Where-Object { $_.name -like "*.msixbundle" } | Select-Object -First 1).browser_download_url
+        $licenseXml = ($releases.assets | Where-Object { $_.name -like "*License1.xml" } | Select-Object -First 1).browser_download_url
 
         if (-not $msixBundle) { throw "Could not locate msixbundle in latest winget-cli release." }
+        if (-not $licenseXml) { throw "Could not locate license XML in latest winget-cli release." }
 
         $tempDir = "$env:TEMP\winget-bootstrap"
         New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
@@ -67,8 +69,14 @@ if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
         Write-Host "    downloading App Installer ($($releases.tag_name))..." -ForegroundColor DarkGray
         Invoke-WebRequest -Uri $msixBundle -OutFile "$tempDir\AppInstaller.msixbundle" -UseBasicParsing
 
-        Write-Host "    installing..." -ForegroundColor DarkGray
-        Add-AppxPackage -Path "$tempDir\AppInstaller.msixbundle" -ForceApplicationShutdown
+        Write-Host "    downloading license..." -ForegroundColor DarkGray
+        Invoke-WebRequest -Uri $licenseXml -OutFile "$tempDir\License1.xml" -UseBasicParsing
+
+        Write-Host "    installing (provisioned)..." -ForegroundColor DarkGray
+        Add-AppxProvisionedPackage -Online `
+            -PackagePath "$tempDir\AppInstaller.msixbundle" `
+            -LicensePath "$tempDir\License1.xml" `
+            -ErrorAction Stop
 
         # Refresh PATH so winget is available in this session
         $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" +
