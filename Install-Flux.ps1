@@ -52,10 +52,50 @@ Write-Host ""
 # ── Step 1: Check winget ───────────────────────────────────────────────────────
 Write-Step "Checking winget..."
 if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-    Write-Fail "winget not found. Install App Installer from the Microsoft Store first."
-    exit 1
+    Write-Step "winget not found. Attempting to install App Installer via WinGet bootstrapper..."
+    try {
+        # Requires Windows 10 1709+ / Server 2019+. Pulls the latest stable release.
+        $progressPreference = 'silentlyContinue'
+        $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/microsoft/winget-cli/releases/latest" -UseBasicParsing
+        $msixBundle = ($releases.assets | Where-Object { $_.name -like "*.msixbundle" })[0].browser_download_url
+        $depVcLibs  = "https://aka.ms/Microsoft.VCLibs.x64.14.00.Desktop.appx"
+        $depUiXaml  = ($releases.assets | Where-Object { $_.name -like "Microsoft.UI.Xaml*.appx" })[0].browser_download_url
+
+        $tempDir = "$env:TEMP\winget-bootstrap"
+        New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+
+        Write-Host "    downloading VCLibs..." -ForegroundColor DarkGray
+        Invoke-WebRequest -Uri $depVcLibs -OutFile "$tempDir\VCLibs.appx" -UseBasicParsing
+
+        if ($depUiXaml) {
+            Write-Host "    downloading Microsoft.UI.Xaml..." -ForegroundColor DarkGray
+            Invoke-WebRequest -Uri $depUiXaml -OutFile "$tempDir\UIXaml.appx" -UseBasicParsing
+            Add-AppxPackage -Path "$tempDir\UIXaml.appx" -ErrorAction SilentlyContinue
+        }
+
+        Add-AppxPackage -Path "$tempDir\VCLibs.appx" -ErrorAction SilentlyContinue
+
+        Write-Host "    downloading App Installer ($($releases.tag_name))..." -ForegroundColor DarkGray
+        Invoke-WebRequest -Uri $msixBundle -OutFile "$tempDir\AppInstaller.msixbundle" -UseBasicParsing
+        Add-AppxPackage -Path "$tempDir\AppInstaller.msixbundle"
+
+        # Refresh PATH so winget is available in this session
+        $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" +
+                    [System.Environment]::GetEnvironmentVariable("PATH", "User")
+
+        if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+            throw "App Installer installed but winget still not in PATH."
+        }
+        Write-Success "App Installer installed. winget is ready."
+    }
+    catch {
+        Write-Fail "Could not install App Installer automatically: $_"
+        Write-Fail "Install it manually from the Microsoft Store (App Installer) and re-run."
+        exit 1
+    }
+} else {
+    Write-Success "winget found."
 }
-Write-Success "winget found."
 
 # ── Step 2: Set execution policy ──────────────────────────────────────────────
 Write-Step "Setting execution policy..."
