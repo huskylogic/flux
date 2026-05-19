@@ -164,20 +164,26 @@ Get-ChildItem $InstallDir | Unblock-File
 Write-Success "Files unblocked."
 
 # ── Step 6: Add to system PATH ────────────────────────────────────────────────
-Write-Step "Adding Flux to system PATH..."
+Write-Step "Adding Flux to PSModulePath..."
 
-$currentPath = [System.Environment]::GetEnvironmentVariable("PSModulePath", "Machine")
-if ($currentPath -notlike "*$InstallDir*") {
-    [System.Environment]::SetEnvironmentVariable(
-        "PSModulePath",
-        "$currentPath;$InstallDir",
-        "Machine"
-    )
-    Write-Success "Added to PSModulePath (Machine)."
-} else {
-    Write-Success "Already in PSModulePath."
+try {
+    $currentPath = [System.Environment]::GetEnvironmentVariable("PSModulePath", "Machine")
+    if ($currentPath -notlike "*$InstallDir*") {
+        [System.Environment]::SetEnvironmentVariable(
+            "PSModulePath",
+            "$currentPath;$InstallDir",
+            "Machine"
+        )
+        Write-Success "Added to PSModulePath (Machine)."
+    } else {
+        Write-Success "Already in PSModulePath."
+    }
 }
-
+catch {
+    # Falls here when running as standard user (no HKLM write access).
+    # The profile import in Step 7 handles module loading - this is non-critical.
+    Write-Host "  [warn] Could not update PSModulePath (Machine) - continuing anyway." -ForegroundColor Yellow
+}
 # ── Step 7: Add auto-import to system PowerShell profile ──────────────────────
 Write-Step "Configuring auto-import..."
 
