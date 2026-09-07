@@ -128,28 +128,49 @@ function Get-FriendlyPublisherName {
 }
 
 
-# Known in-box / OS-bundled package family prefixes to exclude from the
-# Store/MSIX visibility list. SignatureKind doesn't reliably distinguish
-# "stock Windows app" from "real installed software" on current Windows
-# builds -- many in-box apps are Store-signed just like anything else -- so
-# this is a maintained denylist instead. It will need occasional updates as
-# Windows ships new in-box apps; that's an accepted tradeoff over a filter
-# that silently misclassifies things either direction.
+# Known in-box / OS-bundled package prefixes and patterns to exclude from
+# the Store/MSIX visibility list. Windows ships a long, ever-changing tail
+# of internal shell/OS-infrastructure packages (ShellExperienceHost,
+# CloudExperienceHost, and oddly-named ones that differ by build), so rather
+# than list each one individually -- a losing game across different Windows
+# versions on 59 endpoints -- this matches on the prefixes that reliably
+# mean "OS internals, not a real app". None of the software this list
+# exists to catch (Slack, Claude, Teams, Outlook, Terminal, WSL, etc.)
+# matches these patterns.
+$script:FluxAppxDenylistPatterns = @(
+    "Microsoft.Windows.*"      # Windows.<Component> shell/OOBE internals
+    "MicrosoftWindows.*"       # MicrosoftWindows.Client.*, numbered/codenamed internals
+    "Windows.*"                # Windows.CBSPreview, Windows.PrintDialog, etc.
+    "windows.*"                # lowercase variants (windows.immersivecontrolpanel)
+)
+
+# A shorter list of individual system-UI components that don't share one of
+# the prefixes above, plus a couple of known duplicates of software already
+# counted on the classic (registry) side.
 $script:FluxAppxDenylist = @(
+    "Microsoft.AAD.BrokerPlugin"
+    "Microsoft.AccountsControl"
     "Microsoft.Advertising.Xaml"
     "Microsoft.ApplicationCompatibilityEnhancements"
+    "Microsoft.AsyncTextService"
     "Microsoft.AV1VideoExtension"
     "Microsoft.AVCEncoderVideoExtension"
     "Microsoft.BingNews"
     "Microsoft.BingSearch"
     "Microsoft.BingWeather"
+    "Microsoft.BioEnrollment"
+    "Microsoft.CredDialogHost"
     "Microsoft.DesktopAppInstaller"
+    "Microsoft.ECApp"
     "Microsoft.Edge.GameAssist"
     "Microsoft.GamingApp"
     "Microsoft.GetHelp"
     "Microsoft.HEIFImageExtension"
     "Microsoft.HEVCVideoExtension"
+    "Microsoft.LockApp"
     "Microsoft.M365Companions"
+    "Microsoft.MicrosoftEdge.Stable"        # duplicate of classic-managed Edge
+    "Microsoft.MicrosoftEdgeDevToolsClient"
     "Microsoft.MicrosoftOfficeHub"
     "Microsoft.MicrosoftSolitaireCollection"
     "Microsoft.MicrosoftStickyNotes"
@@ -166,12 +187,11 @@ $script:FluxAppxDenylist = @(
     "Microsoft.StorePurchaseApp"
     "Microsoft.Todos"
     "Microsoft.VP9VideoExtensions"
+    "Microsoft.Win32WebViewHost"
     "Microsoft.WebMediaExtensions"
     "Microsoft.WebpImageExtension"
     "Microsoft.WidgetsPlatformRuntime"
     "Microsoft.Whiteboard"
-    "Microsoft.Windows.DevHome"
-    "Microsoft.Windows.Photos"
     "Microsoft.WindowsAlarms"
     "Microsoft.WindowsCalculator"
     "Microsoft.WindowsCamera"
@@ -187,10 +207,9 @@ $script:FluxAppxDenylist = @(
     "Microsoft.ZuneVideo"
     "Microsoft.6365217CE6EB4"   # Windows Defender app
     "microsoft.windowscommunicationsapps"  # Mail and Calendar
+    "MdOdrMcpFilterPackage"
     "MicrosoftCorporationII.QuickAssist"
     "MicrosoftCorporationII.WinAppRuntime*"
-    "MicrosoftWindows.Client.WebExperience"
-    "MicrosoftWindows.CrossDevice"
 )
 
 
@@ -226,7 +245,10 @@ function Get-InstalledAppxApps {
     $real = $packages | Where-Object {
         $pkg = $_
         if ($pkg.IsFramework -or $pkg.IsResourcePackage) { return $false }
-        -not ($script:FluxAppxDenylist | Where-Object { $pkg.Name -like $_ })
+        if ($pkg.Name -match '^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$') { return $false }
+        if ($script:FluxAppxDenylistPatterns | Where-Object { $pkg.Name -like $_ }) { return $false }
+        if ($script:FluxAppxDenylist | Where-Object { $pkg.Name -like $_ }) { return $false }
+        return $true
     }
 
     $results = foreach ($pkg in $real) {
