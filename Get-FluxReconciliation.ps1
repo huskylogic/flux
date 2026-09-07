@@ -103,6 +103,62 @@ function Get-InstalledSoftwareFromRegistry {
 }
 
 
+function Get-InstalledAppxApps {
+    <#
+    .SYNOPSIS
+        Enumerates Store/MSIX-packaged apps. These never appear in the classic
+        Uninstall registry keys at all -- winget-distributed desktop apps like
+        Slack, Teams, and Claude are increasingly packaged this way even
+        though they aren't "Store apps" in the traditional sense.
+
+        These are reported for visibility only, not matched against winget
+        and judged Managed/Unmanaged: MSIX packages don't expose a reliable
+        human-readable display name (Slack shows up internally as
+        "com.tinyspeck.slackdesktop"), so fuzzy-matching that against
+        winget's "Slack" is unreliable enough that a bad match would produce
+        false "Unmanaged" flags on software that's actually fine. Since
+        winget already tracks these packages natively, that risk isn't worth
+        taking just to force them into a category.
+    #>
+    [CmdletBinding()]
+    param()
+
+    $packages = $null
+    try {
+        $packages = Get-AppxPackage -AllUsers -ErrorAction Stop
+    }
+    catch {
+        # -AllUsers requires elevation; fall back to the current user's packages only
+        try { $packages = Get-AppxPackage -ErrorAction Stop } catch { $packages = @() }
+    }
+
+    $real = $packages | Where-Object {
+        -not $_.IsFramework -and
+        -not $_.IsResourcePackage -and
+        $_.SignatureKind -ne "System"
+    }
+
+    $results = foreach ($pkg in $real) {
+        $publisher = if ($pkg.Publisher -match 'O=([^,]+)') { $matches[1] }
+                     elseif ($pkg.Publisher -match 'CN=([^,]+)') { $matches[1] }
+                     else { $pkg.Publisher }
+
+        [PSCustomObject]@{
+            DisplayName = $pkg.Name
+            Version     = $pkg.Version
+            Publisher   = $publisher
+            Scope       = "Store/MSIX"
+        }
+    }
+
+    # Side-by-side versions are normal for MSIX (e.g. two Slack versions during
+    # an update rollout) -- collapse to the newest so it isn't double-counted.
+    return $results | Group-Object DisplayName | ForEach-Object {
+        $_.Group | Sort-Object { try { [version]$_.Version } catch { $_.Version } } -Descending | Select-Object -First 1
+    }
+}
+
+
 function Get-FluxReconciliation {
     <#
     .SYNOPSIS
@@ -132,6 +188,7 @@ function Get-FluxReconciliation {
     }
 
     $registryApps = Get-InstalledSoftwareFromRegistry
+    $appxApps     = Get-InstalledAppxApps
     $wingetApps   = Get-WingetInstalled
 
     if (-not $registryApps -or $registryApps.Count -eq 0) {
@@ -139,7 +196,7 @@ function Get-FluxReconciliation {
         return
     }
 
-    $report = foreach ($app in $registryApps) {
+    $classicReport = foreach ($app in $registryApps) {
         $matched = $false
         foreach ($w in $wingetApps) {
             if (Test-SoftwareNameMatch -RegistryName $app.DisplayName -WingetName $w.Name) {
@@ -156,6 +213,18 @@ function Get-FluxReconciliation {
         }
     }
 
+    $storeReport = foreach ($app in $appxApps) {
+        [PSCustomObject]@{
+            DisplayName = $app.DisplayName
+            Version     = $app.Version
+            Publisher   = $app.Publisher
+            Scope       = $app.Scope
+            Status      = "Store/MSIX"
+        }
+    }
+
+    $report = @($classicReport) + @($storeReport)
+
     if ($Filter) {
         $report = $report | Where-Object {
             $_.DisplayName -like "*$Filter*" -or $_.Publisher -like "*$Filter*"
@@ -164,6 +233,7 @@ function Get-FluxReconciliation {
 
     $unmanaged = @($report | Where-Object { $_.Status -eq "Unmanaged" })
     $managed   = @($report | Where-Object { $_.Status -eq "Managed" })
+    $store     = @($report | Where-Object { $_.Status -eq "Store/MSIX" })
 
     if ($ExportCsv) {
         try {
@@ -195,7 +265,9 @@ function Get-FluxReconciliation {
         return
     }
 
-    $display = $display | Sort-Object Status, DisplayName
+    $display = $display | Sort-Object @{Expression = {
+        switch ($_.Status) { "Unmanaged" { 0 }; "Store/MSIX" { 1 }; default { 2 } }
+    }}, DisplayName
 
     $nameWidth  = [Math]::Min([Math]::Max(($display | ForEach-Object { $_.DisplayName.Length } | Measure-Object -Maximum).Maximum, 4) + 2, 42)
     $pubWidth   = 22
@@ -210,7 +282,11 @@ function Get-FluxReconciliation {
     foreach ($row in $display) {
         $name = if ($row.DisplayName.Length -gt $nameWidth - 2) { $row.DisplayName.Substring(0, $nameWidth - 5) + "..." } else { $row.DisplayName }
         $pub  = if ($row.Publisher.Length -gt $pubWidth - 2)   { $row.Publisher.Substring(0, $pubWidth - 5) + "..." }   else { $row.Publisher }
-        $statusColor = if ($row.Status -eq "Unmanaged") { "Yellow" } else { "DarkGray" }
+        $statusColor = switch ($row.Status) {
+            "Unmanaged"   { "Yellow" }
+            "Store/MSIX"  { "Cyan" }
+            default       { "DarkGray" }
+        }
 
         Write-Host ("  {0,-$nameWidth}" -f $name)      -NoNewline -ForegroundColor White
         Write-Host ("{0,-$pubWidth}"    -f $pub)       -NoNewline -ForegroundColor DarkGray
@@ -218,15 +294,20 @@ function Get-FluxReconciliation {
         Write-Host $row.Status -ForegroundColor $statusColor
     }
 
+    $totalTracked = $registryApps.Count + $appxApps.Count
+
     Write-Host ""
-    Write-Host "  $($registryApps.Count) installed, $($managed.Count) visible to winget, " -NoNewline -ForegroundColor DarkGray
-    Write-Host "$($unmanaged.Count) unmanaged" -ForegroundColor $(if ($unmanaged.Count -gt 0) { "Yellow" } else { "DarkGray" })
+    Write-Host "  $totalTracked installed ($($managed.Count) managed, " -NoNewline -ForegroundColor DarkGray
+    Write-Host "$($unmanaged.Count) unmanaged" -NoNewline -ForegroundColor $(if ($unmanaged.Count -gt 0) { "Yellow" } else { "DarkGray" })
+    Write-Host ", $($store.Count) Store/MSIX)" -ForegroundColor DarkGray
+    Write-Host "  Note: winget list may show a higher total -- it also includes" -ForegroundColor DarkGray
+    Write-Host "  runtime/framework components and OS-bundled apps not counted here." -ForegroundColor DarkGray
     Write-Host ""
 
     if (-not $All -and $unmanaged.Count -gt 0) {
         Write-Host "  Run " -NoNewline -ForegroundColor DarkGray
         Write-Host "flux reconcile -All" -ForegroundColor Cyan -NoNewline
-        Write-Host " to see the full picture, including managed software." -ForegroundColor DarkGray
+        Write-Host " to see the full picture, including managed and Store/MSIX software." -ForegroundColor DarkGray
         Write-Host ""
     }
 }

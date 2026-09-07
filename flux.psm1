@@ -51,7 +51,7 @@ function flux {
         [string]$Command,
 
         [Parameter(Position = 1, ValueFromRemainingArguments)]
-        $Rest
+        [string[]]$Rest
     )
 
     if (-not $Command) {
@@ -107,7 +107,25 @@ function flux {
 
     if ($fluxAliasMap.ContainsKey($cmdLower)) {
         $fn = $fluxAliasMap[$cmdLower]
-        & $fn @Rest
+
+        # Rebuild the remaining tokens as literal command-line text rather than
+        # array-splatting them. Array splats bind purely by position -- a token
+        # like "-All" loses its meaning as a flag and just becomes the value of
+        # whatever positional parameter it lands on. Re-parsing as text makes
+        # PowerShell recognize flags exactly as if they'd been typed directly
+        # against the target function.
+        $argLine = ($Rest | ForEach-Object {
+            if ($_ -match '^-[A-Za-z]') {
+                # looks like a flag (e.g. -All, -Silent, -Limit) -- pass through raw
+                $_
+            }
+            else {
+                # a value -- quote it so spaces/special characters survive intact
+                "'{0}'" -f ($_ -replace "'", "''")
+            }
+        }) -join ' '
+
+        Invoke-Expression "$fn $argLine"
     }
     else {
         Write-FluxError "Unknown command '$Command'."
