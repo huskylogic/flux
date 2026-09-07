@@ -103,6 +103,97 @@ function Get-InstalledSoftwareFromRegistry {
 }
 
 
+function Get-FriendlyPublisherName {
+    <#
+    .SYNOPSIS
+        Extracts a human-readable publisher name from an Appx package's raw
+        X.500 distinguished-name string (e.g. 'CN="Slack Technologies, Inc.",
+        O=Slack Technologies...' or, for many packages, just 'CN=<a GUID>'
+        with no organization name at all).
+    #>
+    param([string]$RawPublisher)
+
+    if (-not $RawPublisher) { return "" }
+
+    if ($RawPublisher -match 'O="([^"]+)"') { return $matches[1] }
+    if ($RawPublisher -match 'O=([^,]+)')   { return $matches[1].Trim() }
+    if ($RawPublisher -match 'CN="([^"]+)"') { return $matches[1] }
+    if ($RawPublisher -match 'CN=([^,]+)') {
+        $cn = $matches[1].Trim()
+        # Many packages sign with a bare GUID and no real org name -- not useful to show
+        if ($cn -match '^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$') { return "" }
+        return $cn
+    }
+    return ""
+}
+
+
+# Known in-box / OS-bundled package family prefixes to exclude from the
+# Store/MSIX visibility list. SignatureKind doesn't reliably distinguish
+# "stock Windows app" from "real installed software" on current Windows
+# builds -- many in-box apps are Store-signed just like anything else -- so
+# this is a maintained denylist instead. It will need occasional updates as
+# Windows ships new in-box apps; that's an accepted tradeoff over a filter
+# that silently misclassifies things either direction.
+$script:FluxAppxDenylist = @(
+    "Microsoft.Advertising.Xaml"
+    "Microsoft.ApplicationCompatibilityEnhancements"
+    "Microsoft.AV1VideoExtension"
+    "Microsoft.AVCEncoderVideoExtension"
+    "Microsoft.BingNews"
+    "Microsoft.BingSearch"
+    "Microsoft.BingWeather"
+    "Microsoft.DesktopAppInstaller"
+    "Microsoft.Edge.GameAssist"
+    "Microsoft.GamingApp"
+    "Microsoft.GetHelp"
+    "Microsoft.HEIFImageExtension"
+    "Microsoft.HEVCVideoExtension"
+    "Microsoft.M365Companions"
+    "Microsoft.MicrosoftOfficeHub"
+    "Microsoft.MicrosoftSolitaireCollection"
+    "Microsoft.MicrosoftStickyNotes"
+    "Microsoft.MixedReality.Portal"
+    "Microsoft.MPEG2VideoExtension"
+    "Microsoft.Office.ActionsServer"
+    "Microsoft.OfficePushNotificationUtility"
+    "Microsoft.OneDriveSync"
+    "Microsoft.People"
+    "Microsoft.RawImageExtension"
+    "Microsoft.ScreenSketch"
+    "Microsoft.SecHealthUI"
+    "Microsoft.StartExperiencesApp"
+    "Microsoft.StorePurchaseApp"
+    "Microsoft.Todos"
+    "Microsoft.VP9VideoExtensions"
+    "Microsoft.WebMediaExtensions"
+    "Microsoft.WebpImageExtension"
+    "Microsoft.WidgetsPlatformRuntime"
+    "Microsoft.Whiteboard"
+    "Microsoft.Windows.DevHome"
+    "Microsoft.Windows.Photos"
+    "Microsoft.WindowsAlarms"
+    "Microsoft.WindowsCalculator"
+    "Microsoft.WindowsCamera"
+    "Microsoft.WindowsFeedbackHub"
+    "Microsoft.WindowsMaps"
+    "Microsoft.WindowsNotepad"
+    "Microsoft.WindowsSoundRecorder"
+    "Microsoft.WindowsStore"
+    "Microsoft.Winget.Source"
+    "Microsoft.Xbox*"
+    "Microsoft.YourPhone"
+    "Microsoft.ZuneMusic"
+    "Microsoft.ZuneVideo"
+    "Microsoft.6365217CE6EB4"   # Windows Defender app
+    "microsoft.windowscommunicationsapps"  # Mail and Calendar
+    "MicrosoftCorporationII.QuickAssist"
+    "MicrosoftCorporationII.WinAppRuntime*"
+    "MicrosoftWindows.Client.WebExperience"
+    "MicrosoftWindows.CrossDevice"
+)
+
+
 function Get-InstalledAppxApps {
     <#
     .SYNOPSIS
@@ -133,21 +224,17 @@ function Get-InstalledAppxApps {
     }
 
     $real = $packages | Where-Object {
-        -not $_.IsFramework -and
-        -not $_.IsResourcePackage -and
-        $_.SignatureKind -ne "System"
+        $pkg = $_
+        if ($pkg.IsFramework -or $pkg.IsResourcePackage) { return $false }
+        -not ($script:FluxAppxDenylist | Where-Object { $pkg.Name -like $_ })
     }
 
     $results = foreach ($pkg in $real) {
-        $publisher = if ($pkg.Publisher -match 'O=([^,]+)') { $matches[1] }
-                     elseif ($pkg.Publisher -match 'CN=([^,]+)') { $matches[1] }
-                     else { $pkg.Publisher }
-
         [PSCustomObject]@{
             DisplayName = $pkg.Name
             Version     = $pkg.Version
-            Publisher   = $publisher
-            Scope       = "Store/MSIX"
+            Publisher   = Get-FriendlyPublisherName $pkg.Publisher
+            Scope       = "-"
         }
     }
 
