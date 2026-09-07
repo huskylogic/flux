@@ -14,6 +14,7 @@ $loadOrder = @(
     "Search-FluxPackage.ps1"
     "Uninstall-FluxPackage.ps1"
     "Get-FluxPackage.ps1"
+    "Get-FluxReconciliation.ps1"
     "Get-FluxAliases.ps1"
     "Update-FluxSelf.ps1"
     "Update-FluxPackages.ps1"
@@ -41,6 +42,7 @@ $fluxAliasMap = @{
     "update"    = "Update-FluxSelf"
     "upgrade"   = "Update-FluxPackages"
     "version"   = "Show-FluxVersion"
+    "reconcile" = "Get-FluxReconciliation"
 }
 
 function flux {
@@ -71,6 +73,8 @@ function flux {
         Write-Host "List installed packages" -ForegroundColor DarkGray
         Write-Host "    flux aliases   [filter]      " -NoNewline -ForegroundColor White
         Write-Host "Browse available aliases" -ForegroundColor DarkGray
+        Write-Host "    flux reconcile               " -NoNewline -ForegroundColor White
+        Write-Host "Show installed software winget can't see" -ForegroundColor DarkGray
         Write-Host "    flux update                  " -NoNewline -ForegroundColor White
         Write-Host "Update the Flux tool itself from GitHub" -ForegroundColor DarkGray
         Write-Host "    flux version                 " -NoNewline -ForegroundColor White
@@ -115,4 +119,4 @@ function flux {
 
 #endregion
 
-Export-ModuleMember -Function flux, Install-FluxPackage, Search-FluxPackage, Uninstall-FluxPackage, Get-FluxPackage, Get-FluxAliases, Get-FluxAlias, Get-FluxVersion, Show-FluxVersion, Update-FluxSelf, Update-FluxPackages
+Export-ModuleMember -Function flux, Install-FluxPackage, Search-FluxPackage, Uninstall-FluxPackage, Get-FluxPackage, Get-FluxReconciliation, Get-FluxAliases, Get-FluxAlias, Get-FluxVersion, Show-FluxVersion, Update-FluxSelf, Update-FluxPackages

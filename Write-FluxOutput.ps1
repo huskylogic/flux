@@ -24,3 +24,11 @@ function Write-FluxError {
     Write-Host " $Message"
     Write-Host ""
 }
+
+function Write-FluxWarning {
+    param([string]$Message)
+    Write-Host "  " -NoNewline
+    Write-Host "[warn]" -ForegroundColor Yellow -NoNewline
+    Write-Host " $Message"
+    Write-Host ""
+}

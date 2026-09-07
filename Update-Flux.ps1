@@ -33,6 +33,7 @@ $files = @(
     "Search-FluxPackage.ps1"
     "Uninstall-FluxPackage.ps1"
     "Get-FluxPackage.ps1"
+    "Get-FluxReconciliation.ps1"
     "Get-FluxAliases.ps1"
     "Update-FluxSelf.ps1"
     "Update-FluxPackages.ps1"
