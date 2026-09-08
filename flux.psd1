@@ -26,6 +26,7 @@
         'Get-FluxPackage'
         'Get-FluxReconciliation'
         'Sync-FluxPackages'
+        'Export-FluxManifest'
     )
     CmdletsToExport   = @()
     VariablesToExport = @()

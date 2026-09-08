@@ -136,6 +136,7 @@ $files = @(
     "Update-FluxSelf.ps1"
     "Update-FluxPackages.ps1"
     "Sync-FluxPackages.ps1"
+    "Export-FluxManifest.ps1"
     "flux-aliases.csv"
 )
 

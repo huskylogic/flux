@@ -306,10 +306,10 @@ function Get-FluxReconciliation {
     }
 
     $classicReport = foreach ($app in $registryApps) {
-        $matched = $false
+        $matchedWinget = $null
         foreach ($w in $wingetApps) {
             if (Test-SoftwareNameMatch -RegistryName $app.DisplayName -WingetName $w.Name) {
-                $matched = $true
+                $matchedWinget = $w
                 break
             }
         }
@@ -318,7 +318,8 @@ function Get-FluxReconciliation {
             Version     = $app.Version
             Publisher   = $app.Publisher
             Scope       = $app.Scope
-            Status      = if ($matched) { "Managed" } else { "Unmanaged" }
+            Status      = if ($matchedWinget) { "Managed" } else { "Unmanaged" }
+            WingetId    = if ($matchedWinget) { $matchedWinget.Id } else { "" }
         }
     }
 
@@ -329,6 +330,7 @@ function Get-FluxReconciliation {
             Publisher   = $app.Publisher
             Scope       = $app.Scope
             Status      = "Store/MSIX"
+            WingetId    = ""
         }
     }
 

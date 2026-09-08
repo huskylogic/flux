@@ -19,6 +19,7 @@ $loadOrder = @(
     "Update-FluxSelf.ps1"
     "Update-FluxPackages.ps1"
     "Sync-FluxPackages.ps1"
+    "Export-FluxManifest.ps1"
 )
 
 foreach ($file in $loadOrder) {
@@ -45,6 +46,7 @@ $fluxAliasMap = @{
     "version"   = "Show-FluxVersion"
     "reconcile" = "Get-FluxReconciliation"
     "sync"      = "Sync-FluxPackages"
+    "export"    = "Export-FluxManifest"
 }
 
 function flux {
@@ -79,6 +81,8 @@ function flux {
         Write-Host "Show installed software winget can't see" -ForegroundColor DarkGray
         Write-Host "    flux sync                    " -NoNewline -ForegroundColor White
         Write-Host "Install/upgrade to match flux-packages.csv" -ForegroundColor DarkGray
+        Write-Host "    flux export    [-Path]       " -NoNewline -ForegroundColor White
+        Write-Host "Bootstrap flux-packages.csv from this machine" -ForegroundColor DarkGray
         Write-Host "    flux update                  " -NoNewline -ForegroundColor White
         Write-Host "Update the Flux tool itself from GitHub" -ForegroundColor DarkGray
         Write-Host "    flux version                 " -NoNewline -ForegroundColor White
@@ -141,4 +145,4 @@ function flux {
 
 #endregion
 
-Export-ModuleMember -Function flux, Install-FluxPackage, Search-FluxPackage, Uninstall-FluxPackage, Get-FluxPackage, Get-FluxReconciliation, Sync-FluxPackages, Get-FluxAliases, Get-FluxAlias, Get-FluxVersion, Show-FluxVersion, Update-FluxSelf, Update-FluxPackages
+Export-ModuleMember -Function flux, Install-FluxPackage, Search-FluxPackage, Uninstall-FluxPackage, Get-FluxPackage, Get-FluxReconciliation, Sync-FluxPackages, Export-FluxManifest, Get-FluxAliases, Get-FluxAlias, Get-FluxVersion, Show-FluxVersion, Update-FluxSelf, Update-FluxPackages
