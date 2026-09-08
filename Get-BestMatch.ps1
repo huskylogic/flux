@@ -21,21 +21,28 @@ function Get-LevenshteinDistance {
     if ($lenA -eq 0) { return $lenB }
     if ($lenB -eq 0) { return $lenA }
 
-    $d = New-Object 'int[,]' ($lenA + 1), ($lenB + 1)
-    for ($i = 0; $i -le $lenA; $i++) { $d[$i, 0] = $i }
-    for ($j = 0; $j -le $lenB; $j++) { $d[0, $j] = $j }
+    # Jagged array (array of arrays) rather than a true multi-dimensional
+    # array -- PowerShell's parser chokes on comma-indexed access like
+    # $d[$i - 1, $j] once an arithmetic expression is involved. Simple
+    # chained indexing ($d[$i][$j]) avoids that entirely.
+    $d = New-Object 'object[]' ($lenA + 1)
+    for ($i = 0; $i -le $lenA; $i++) {
+        $d[$i] = New-Object 'int[]' ($lenB + 1)
+    }
+    for ($i = 0; $i -le $lenA; $i++) { $d[$i][0] = $i }
+    for ($j = 0; $j -le $lenB; $j++) { $d[0][$j] = $j }
 
     for ($i = 1; $i -le $lenA; $i++) {
         for ($j = 1; $j -le $lenB; $j++) {
             $cost = if ($A[$i - 1] -eq $B[$j - 1]) { 0 } else { 1 }
-            $d[$i, $j] = [Math]::Min(
-                [Math]::Min($d[$i - 1, $j] + 1, $d[$i, $j - 1] + 1),
-                $d[$i - 1, $j - 1] + $cost
-            )
+            $deletion     = $d[$i - 1][$j] + 1
+            $insertion    = $d[$i][$j - 1] + 1
+            $substitution = $d[$i - 1][$j - 1] + $cost
+            $d[$i][$j] = [Math]::Min([Math]::Min($deletion, $insertion), $substitution)
         }
     }
 
-    return $d[$lenA, $lenB]
+    return $d[$lenA][$lenB]
 }
 
 
