@@ -5,44 +5,6 @@ function Update-FluxSelf {
     $installDir = $PSScriptRoot
     $baseUrl    = "https://raw.githubusercontent.com/huskylogic/flux/main"
 
-    Write-Host ""
-    Write-Host "  " -NoNewline
-    Write-Host "[flux update]" -ForegroundColor Cyan -NoNewline
-    Write-Host " Checking version..."
-    Write-Host ""
-
-    # Compare local vs remote version
-    $localVersion  = Get-FluxVersion
-    try {
-        $remoteVersion = (Invoke-WebRequest -Uri "$baseUrl/flux.version" -UseBasicParsing -ErrorAction Stop).Content.Trim()
-    }
-    catch {
-        $remoteVersion = $null
-    }
-
-    if ($remoteVersion -and $localVersion -eq $remoteVersion) {
-        Write-Host "  " -NoNewline
-        Write-Host "[ok]" -ForegroundColor Green -NoNewline
-        Write-Host " Flux is already up to date " -NoNewline
-        Write-Host "v$localVersion" -ForegroundColor Cyan
-        Write-Host ""
-        return
-    }
-
-    if ($remoteVersion) {
-        Write-Host "  " -NoNewline
-        Write-Host "Update available: " -NoNewline -ForegroundColor DarkGray
-        Write-Host "v$localVersion" -ForegroundColor Yellow -NoNewline
-        Write-Host " -> " -NoNewline -ForegroundColor DarkGray
-        Write-Host "v$remoteVersion" -ForegroundColor Green
-    } else {
-        Write-Host "  Could not check remote version. Updating anyway..." -ForegroundColor DarkGray
-    }
-
-    Write-Host ""
-    Write-Host "  Pulling from $baseUrl" -ForegroundColor DarkGray
-    Write-Host ""
-
     $files = @(
         "flux.psd1"
         "flux.psm1"
@@ -63,6 +25,59 @@ function Update-FluxSelf {
         "Sync-FluxPackages.ps1"
         "Export-FluxManifest.ps1"
     )
+
+    Write-Host ""
+    Write-Host "  " -NoNewline
+    Write-Host "[flux update]" -ForegroundColor Cyan -NoNewline
+    Write-Host " Checking version..."
+    Write-Host ""
+
+    # Compare local vs remote version
+    $localVersion  = Get-FluxVersion
+    try {
+        $remoteVersion = (Invoke-WebRequest -Uri "$baseUrl/flux.version" -UseBasicParsing -ErrorAction Stop).Content.Trim()
+    }
+    catch {
+        $remoteVersion = $null
+    }
+
+    # Don't trust the version number alone -- a previous update can leave
+    # flux.version updated even if one or more individual files failed to
+    # download (e.g. a file that hadn't been pushed to GitHub yet at the
+    # moment flux.version itself was pulled). If that happens, a plain
+    # version-number check would report "already up to date" forever and
+    # never retry the missing file.
+    $missingFiles  = $files | Where-Object { -not (Test-Path (Join-Path $installDir $_)) }
+    $versionsMatch = $remoteVersion -and ($localVersion -eq $remoteVersion)
+
+    if ($versionsMatch -and $missingFiles.Count -eq 0) {
+        Write-Host "  " -NoNewline
+        Write-Host "[ok]" -ForegroundColor Green -NoNewline
+        Write-Host " Flux is already up to date " -NoNewline
+        Write-Host "v$localVersion" -ForegroundColor Cyan
+        Write-Host ""
+        return
+    }
+
+    if ($versionsMatch -and $missingFiles.Count -gt 0) {
+        Write-Host "  " -NoNewline
+        Write-Host "[repair]" -ForegroundColor Yellow -NoNewline
+        Write-Host " v$localVersion is installed, but $($missingFiles.Count) file(s) are missing locally. Re-pulling..."
+    }
+    elseif ($remoteVersion) {
+        Write-Host "  " -NoNewline
+        Write-Host "Update available: " -NoNewline -ForegroundColor DarkGray
+        Write-Host "v$localVersion" -ForegroundColor Yellow -NoNewline
+        Write-Host " -> " -NoNewline -ForegroundColor DarkGray
+        Write-Host "v$remoteVersion" -ForegroundColor Green
+    }
+    else {
+        Write-Host "  Could not check remote version. Updating anyway..." -ForegroundColor DarkGray
+    }
+
+    Write-Host ""
+    Write-Host "  Pulling from $baseUrl" -ForegroundColor DarkGray
+    Write-Host ""
 
     $failed  = @()
     $updated = @()
@@ -94,7 +109,13 @@ function Update-FluxSelf {
     if ($failed.Count -gt 0) {
         Write-Host "  " -NoNewline
         Write-Host "[warning]" -ForegroundColor Yellow -NoNewline
-        Write-Host " $($failed.Count) file(s) failed to update."
+        Write-Host " $($failed.Count) file(s) failed to update:"
+        foreach ($f in $failed) {
+            Write-Host "    $f" -ForegroundColor Red
+        }
+        Write-Host ""
+        Write-Host "  Run flux update again to retry -- missing files are re-checked" -ForegroundColor DarkGray
+        Write-Host "  even when the version number already matches." -ForegroundColor DarkGray
     }
     else {
         Write-Host "  " -NoNewline
@@ -104,7 +125,7 @@ function Update-FluxSelf {
         Write-Host ""
         Write-Host "  " -NoNewline
         Write-Host "[note]" -ForegroundColor DarkGray -NoNewline
-        Write-Host " flux-aliases.csv was not updated to preserve your custom aliases."
+        Write-Host " flux-aliases.csv and flux-packages.csv were not updated to preserve your custom setup."
     }
 
     Write-Host ""

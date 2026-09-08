@@ -41,7 +41,9 @@ $files = @(
     "Export-FluxManifest.ps1"
 )
 
-# Note: flux-aliases.csv is NOT updated automatically to preserve local customizations
+# Note: flux-aliases.csv and flux-packages.csv are NOT updated automatically to preserve local customizations
+
+$failed = @()
 
 foreach ($file in $files) {
     $url  = "$baseUrl/$file"
@@ -51,6 +53,7 @@ foreach ($file in $files) {
         Write-Host "    updated $file" -ForegroundColor DarkGray
     }
     catch {
+        $failed += $file
         Write-Host "    failed: $file" -ForegroundColor Red
     }
 }
@@ -58,6 +61,15 @@ foreach ($file in $files) {
 Get-ChildItem $InstallDir | Unblock-File
 
 Write-Host ""
-Write-Host "  [ok] Flux updated. Reload with:" -ForegroundColor Green
-Write-Host "       Remove-Module flux; Import-Module flux" -ForegroundColor DarkGray
+if ($failed.Count -gt 0) {
+    Write-Host "  [warning] $($failed.Count) file(s) failed to update:" -ForegroundColor Yellow
+    foreach ($f in $failed) {
+        Write-Host "    $f" -ForegroundColor Red
+    }
+    Write-Host "  Re-run this script to retry." -ForegroundColor DarkGray
+}
+else {
+    Write-Host "  [ok] Flux updated. Reload with:" -ForegroundColor Green
+    Write-Host "       Remove-Module flux; Import-Module flux" -ForegroundColor DarkGray
+}
 Write-Host ""
