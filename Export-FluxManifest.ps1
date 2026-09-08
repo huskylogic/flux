@@ -45,18 +45,31 @@ function Export-FluxManifest {
     $reconcileData = $reconcileJson | ConvertFrom-Json
     $managed = @($reconcileData | Where-Object { $_.Status -eq "Managed" -and $_.WingetId })
 
-    if ($managed.Count -eq 0) {
-        Write-FluxError "No managed software found to export."
+    # winget's own "Id" column isn't always a real, portable catalog ID.
+    # When it can't cleanly match installed software to its catalog, it
+    # falls back to showing the local ARP registry path or Appx package
+    # family name instead -- these are tied to this specific machine and
+    # aren't installable anywhere else, so a manifest built from them would
+    # just fail on every other endpoint it's deployed to.
+    $portable    = @($managed | Where-Object { $_.WingetId -notmatch '^(ARP|MSIX)\\' })
+    $skippedCount = $managed.Count - $portable.Count
+
+    if ($portable.Count -eq 0) {
+        Write-FluxError "No exportable software found -- everything matched only had a local, non-portable winget Id."
         return
     }
 
-    $rows = $managed |
+    $rows = $portable |
         Select-Object @{Name = "Package"; Expression = { $_.WingetId } }, @{Name = "PinnedVersion"; Expression = { "" } } |
         Sort-Object Package -Unique
 
     $rows | Export-Csv -Path $Path -NoTypeInformation -Force
 
     Write-FluxSuccess "Exported $($rows.Count) package(s) to $Path"
+    if ($skippedCount -gt 0) {
+        Write-Host "  Skipped $skippedCount item(s) winget could only identify by a local ID" -ForegroundColor DarkGray
+        Write-Host "  (not portable to other machines) -- run flux reconcile -All to see them." -ForegroundColor DarkGray
+    }
     Write-Host "  This includes everything winget recognizes on this machine --" -ForegroundColor DarkGray
     Write-Host "  review and trim it before deploying to a client's fleet." -ForegroundColor DarkGray
     Write-Host ""
