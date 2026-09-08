@@ -118,6 +118,12 @@ function Get-WingetInstalled {
 }
 
 
+function Get-WingetUpgradable {
+    $raw = Invoke-WingetCommand -Arguments @("upgrade", "--accept-source-agreements")
+    return ConvertFrom-WingetTable -Lines $raw
+}
+
+
 function Install-WingetPackage {
     param(
         [string]$PackageId,

@@ -37,6 +37,7 @@ $files = @(
     "Get-FluxAliases.ps1"
     "Update-FluxSelf.ps1"
     "Update-FluxPackages.ps1"
+    "Sync-FluxPackages.ps1"
 )
 
 # Note: flux-aliases.csv is NOT updated automatically to preserve local customizations

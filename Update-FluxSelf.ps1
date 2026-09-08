@@ -60,6 +60,7 @@ function Update-FluxSelf {
         "Get-FluxAliases.ps1"
         "Update-FluxSelf.ps1"
         "Update-FluxPackages.ps1"
+        "Sync-FluxPackages.ps1"
     )
 
     $failed  = @()
